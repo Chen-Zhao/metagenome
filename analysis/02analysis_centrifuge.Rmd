@@ -1,0 +1,20 @@
+---
+title: "counts"
+author: "chen"
+date: "4 1 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# databases
+```{r, eval=FALSE}
+cd /home/chenzhao/projects/metaG/02qc_batch
+wget ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/downloads/centrifuge-1.0.3-beta-Linux_x86_64.zip
+wget ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz
+wget ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/nt.tar.gz
+
+
+```
