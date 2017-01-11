@@ -30,3 +30,18 @@ centrifuge -p 8 -x /home/db/metagenome/centrifuge/p_compressed+h+v -1 ${a}_R1.fa
 done
 
 ```
+
+# check PCR eval
+```{r, eval=FALSE}
+sinfo <- read.table("../01abundance/pg.txt",stringsAsFactors=F,header=F)
+f <- list.files(pattern=".phv.centrifuge.report$")
+d <- sapply(f,function(x){
+res <- 0
+try(res <- read.table(pipe(paste("grep 'Porphyromonas gingivalis' ",x)))[1,8],silent=T)
+res
+})
+
+
+```
+
+
