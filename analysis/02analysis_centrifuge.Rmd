@@ -13,9 +13,20 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r, eval=FALSE}
 cd /home/chenzhao/projects/metaG/02qc_batch
 wget ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/downloads/centrifuge-1.0.3-beta-Linux_x86_64.zip
+
+cd /home/db/metagenome/centrifuge
 wget ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/p_compressed+h+v.tar.gz
 wget ftp://ftp.ccb.jhu.edu/pub/infphilo/centrifuge/data/nt.tar.gz
 
+```
+# run 
+```{r,eval=FALSE}
 
+cd /home/chenzhao/projects/metaG/02qc_batch
+centrifuge -p 8 -x /home/db/metagenome/centrifuge/p_compressed+h+v -1 ESCC_M_000001_R1.fastq -2 ESCC_M_000001_R2.fastq --report-file ESCC_M_000001.centrifuge.report -S ESCC_M_000001.centrifuge.report.class
+
+for i in ESCC_[MNST]*R1.fastq ; do echo $i; a=${i%_R1.fastq} ; 
+centrifuge -p 8 -x /home/db/metagenome/centrifuge/p_compressed+h+v -1 ${a}_R1.fastq -2 ${a}_R2.fastq --report-file $a.phv.centrifuge.report -S $a.phv.centrifuge.report.class; 
+done
 
 ```
