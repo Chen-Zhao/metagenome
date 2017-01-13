@@ -29,6 +29,11 @@ for i in ESCC_[MNST]*R1.fastq ; do echo $i; a=${i%_R1.fastq} ;
 centrifuge -p 8 -x /home/db/metagenome/centrifuge/p_compressed+h+v -1 ${a}_R1.fastq -2 ${a}_R2.fastq --report-file $a.phv.centrifuge.report -S $a.phv.centrifuge.report.class; 
 done
 
+for i in ESCC_[MNST]*R1.fastq ; do echo $i; a=${i%_R1.fastq} ; 
+centrifuge -p 12 -x /home/db/metagenome/centrifuge/nt -1 ${a}_R1.fastq -2 ${a}_R2.fastq --report-file $a.phv.centrifuge.nt.report -S $a.phv.centrifuge.nt.report.class; 
+done
+
+
 ```
 
 # check PCR eval
