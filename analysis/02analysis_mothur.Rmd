@@ -1,0 +1,355 @@
+---
+title: "mothur"
+author: "cheney"
+date: "Thursday, January 05, 2017"
+output: html_document
+---
+
+
+# example miseq SOP
+
+```{r, eval = FALSE}
+
+# arch linux
+cd /home/cheney/research/project/metagenome/mothur
+
+wget https://github.com/mothur/mothur/releases/download/v1.38.1.1/Mothur.linux_64.zip
+
+## no species info for silva
+
+wget https://www.mothur.org/w/images/b/be/Silva.nr_v123.tgz
+wget https://www.mothur.org/w/images/1/15/Silva.seed_v123.tgz
+wget https://www.mothur.org/w/images/f/f1/Silva.gold.bacteria.zip
+wget https://www.mothur.org/w/images/9/98/Silva.bacteria.zip
+wget https://www.arb-silva.de/fileadmin/silva_databases/release_123/Exports/SILVA_123_SSURef_Nr99_tax_silva.fasta.gz
+wget https://www.arb-silva.de/fileadmin/silva_databases/release_123/Exports/SILVA_123_SSURef_Nr99_tax_silva_full_align_trunc.fasta.gz
+wget https://www.arb-silva.de/fileadmin/silva_databases/release_123/Exports/taxonomy/tax_slv_ssu_123.map
+wget https://www.arb-silva.de/fileadmin/silva_databases/release_123/Exports/taxonomy/tax_slv_ssu_123.tre
+wget https://www.arb-silva.de/fileadmin/silva_databases/release_123/Exports/taxonomy/tax_slv_ssu_123.txt
+
+zcat ../SILVA_123_SSURef_Nr99_tax_silva.fasta.gz | head -n 625374 | awk '{if($0~/>/){print $0}else{gsub("U","T",$0); print $0}}' > SILVA_123_SSURef_Nr99_tax_silva.fasta
+awk '/>/{OFS=" "; gsub(">","",$0); a=$1; gsub($1" ","",$0);gsub(" ","_",$0); print a"\t"$0";"}' SILVA_123_SSURef_Nr99_tax_silva.fasta > SILVA_123_SSURef_Nr99_tax_silva.tax
+## check greengenes; no species; too old
+
+## referece for tax
+wget https://www.mothur.org/w/images/5/59/Trainset9_032012.pds.zip
+
+cd /home/cheney/research/project/metagenome/mothur/MiSeq_SOP
+../mothur/mothur
+
+# assembly seq and combine all samples
+make.contigs(file=stability.files, processors=2)
+summary.seqs(fasta=stability.trim.contigs.fasta)
+screen.seqs(fasta=stability.trim.contigs.fasta, group=stability.contigs.groups, summary=stability.trim.contigs.summary, maxambig=0, maxlength=275)
+get.current()
+
+summary.seqs(fasta=stability.trim.contigs.good.fasta)
+summary.seqs(fasta=current)
+summary.seqs()
+
+# uniq sequence
+unique.seqs(fasta=stability.trim.contigs.good.fasta)
+count.seqs(name=stability.trim.contigs.good.names, group=stability.contigs.good.groups)
+summary.seqs(count=stability.trim.contigs.good.count_table)
+
+# reference
+## silva.bacteria.fasta
+system( zcat ../SILVA_123_SSURef_Nr99_tax_silva_full_align_trunc.fasta.gz | head -n 625374 > SILVA_123_SSURef_Nr99_tax_silva_full_align_trunc.fasta)
+summary.seqs(fasta=SILVA_123_SSURef_Nr99_tax_silva_full_align_trunc.fasta,processors=2)
+pcr.seqs(fasta=SILVA_123_SSURef_Nr99_tax_silva_full_align_trunc.fasta, start=1007, end=43278, keepdots=F, processors=2)
+
+system(mv SILVA_123_SSURef_Nr99_tax_silva_full_align_trunc.pcr.fasta silva.v4.fasta)
+align.seqs(fasta=stability.trim.contigs.good.unique.fasta, reference=silva.v4.fasta)
+
+summary.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table)
+
+screen.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table, summary=stability.trim.contigs.good.unique.summary, start=12855, end=22437, maxhomop=8)
+summary.seqs(fasta=current, count=current)
+
+filter.seqs(fasta=stability.trim.contigs.good.unique.good.align, vertical=T, trump=.)
+unique.seqs(fasta=stability.trim.contigs.good.unique.good.filter.fasta, count=stability.trim.contigs.good.good.count_table)
+pre.cluster(fasta=stability.trim.contigs.good.unique.good.filter.unique.fasta, count=stability.trim.contigs.good.unique.good.filter.count_table, diffs=2)
+chimera.uchime(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.count_table, dereplicate=t)
+
+remove.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, accnos=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.accnos)
+summary.seqs(fasta=current, count=current)
+
+classify.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.pick.count_table, reference=SILVA_123_SSURef_Nr99_tax_silva.fasta, taxonomy=SILVA_123_SSURef_Nr99_tax_silva.tax, cutoff=80,processors=2)
+
+remove.lineage(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.pick.count_table, taxonomy=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pds.wang.taxonomy, taxon=Chloroplast-unknown-Archaea-Eukaryota)
+
+summary.tax(taxonomy=current, count=current)
+summary.tax(taxonomy=current, count=current,output=simple)
+
+get.groups(count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.pick.pick.count_table, fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.fasta, groups=Mock)
+seq.error(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.pick.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.pick.pick.pick.count_table, reference=HMP_MOCK.v35.fasta, aligned=F)
+
+
+```
+
+
+# run abundance
+
+```{r,eval=FALSE}
+
+fastqc
+wget http://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.5.zip
+
+R
+
+fq <- list.files(pattern=".fastq$", path="../00raw/",full.names=T)
+fqn <- list.files(pattern=".fastq$", path="../00raw/",full.names=F)
+
+cmd <- paste(" fastqc ",fq," -o fastqcoutput ;")
+library(parallel)
+cl <- makeCluster(rep("localhost",6))
+run <-  clusterApplyLB(cl, cmd, function(x){system(x)})
+stopCluster(cl)
+
+zip <- list.files(pattern=".zip$", path="./fastqcoutput/",full.names=T)
+zipcmd <- paste(" unzip ",zip," ;")
+sapply(zipcmd,system)
+system(" mv *_fastqc fastqcoutput/ ")
+
+fastqcdata <- list.files(pattern="fastqc_data.txt$", path="./fastqcoutput/",full.names=T,recursive = T)
+fastqcdata <- sapply(fastqcdata,function(x){
+  d <- readLines(x)
+  s <- grep("Per base sequence quality",d)
+  e <- grep("Per tile sequence quality",d)
+  d <- read.table(x,skip=s,nrow=e-s-3)[[2]]
+  names(d) <- read.table(x,skip=s,nrow=e-s-3)[[1]]
+  d
+})
+
+png("fastqc_perbase.png",height = 600,width=1000)
+plot(fastqcdata[,1],type="l",ylim=c(0,42),axes=F,xlab="",col="red")
+axis(1,1:nrow(fastqcdata),rownames(fastqcdata),las=3)
+axis(2)
+sapply(2:nrow(fastqcdata),function(x){
+  col <- ifelse(x%%2==0,"blue","red")
+  points(fastqcdata[,x],type="l",col=col)
+})
+abline(v=6)
+legend("bottomleft",legend = c("R1","R2"),col = c("red","blue"),seg.len = 3,lty=c(1,1),lwd=c(3,3),bty = "n")
+dev.off()
+
+fq1 <- fq[grep("_R1",fq)]
+fq2 <- fq[grep("_R2",fq)]
+
+outperfix <- gsub(".*/(.*)_R1.fastq","\\1",fq1)
+fid2sid <- c(paste("ESCC_N_00000",1:9,sep=""),paste("ESCC_N_0000",10:32,sep=""),
+             paste("ESCC_S_00000",1:9,sep=""),paste("ESCC_S_0000",10:50,sep=""),
+             paste("ESCC_T_00000",1:9,sep=""),paste("ESCC_T_0000",10:50,sep=""),
+             paste("ESCC_M_00000",1:6,sep=""))
+names(fid2sid) <- c(paste("GYZ",1:132,sep=""),paste("MZK",1:6,sep=""))
+fid2sid[outperfix]
+
+wget http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.36.zip
+
+
+trimmcmd <- paste(" java -jar /home/softwares/jar/trimmomatic-0.36.jar PE -phred33 -trimlog /dev/null ",
+                  " -threads 4 ",
+                  fq1," ",fq2," ",
+                  fid2sid[outperfix],"_R1.fastq "," /dev/null ",
+                  fid2sid[outperfix],"_R2.fastq "," /dev/null ",
+                  " ILLUMINACLIP:TruSeq2-PE.fa:2:20:10 ",
+                  " HEADCROP:5 LEADING:3 TRAILING:15 SLIDINGWINDOW:2:20 MINLEN:150 ",
+                  sep="")
+library(parallel)
+cl <- makeCluster(rep("localhost",6))
+run <-  clusterApplyLB(cl, trimmcmd, function(x){system(x)})
+stopCluster(cl)
+
+# mothur
+
+fq1 <-list.files(pattern="ESCC.*_R1.fastq")
+fq2 <-list.files(pattern="ESCC.*_R2.fastq")
+sid <- gsub("_R1.fastq","",fq1)
+
+write.table(cbind(sid,fq1,fq2),"stability.files",sep="\t",col.names = F,row.names = F,quote=F)
+
+## only on ESCC_M
+
+grep "ESCC_M_" stability.files.raw > stability.files
+
+./mothur/mothur
+
+make.contigs(file=stability.files, processors=12,deltaq=15,trimoverlap=F,insert=30)
+summary.seqs(fasta=stability.trim.contigs.fasta)
+screen.seqs(fasta=stability.trim.contigs.fasta, group=stability.contigs.groups, summary=stability.trim.contigs.summary, maxambig=0, minlength=400,maxlength=470)
+get.current()
+
+summary.seqs(fasta=stability.trim.contigs.good.fasta)
+
+# uniq sequence
+unique.seqs(fasta=stability.trim.contigs.good.fasta)
+count.seqs(name=stability.trim.contigs.good.names, group=stability.contigs.good.groups)
+summary.seqs(count=stability.trim.contigs.good.count_table)
+
+# bwa to reference
+
+bwa mem -t 16 SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.fasta stability.trim.contigs.good.unique.fasta > stability.trim.contigs.good.unique.fasta.silva.sam
+
+samtools view -F 256 -S stability.trim.contigs.good.unique.fasta.silva.sam | cut -f 3 | sort | uniq > refdblist
+
+samtools view -F 256 -S  stability.trim.contigs.good.unique.fasta.silva.sam | cut -f 3,10,14 | awk '{a=length($2); b=$3; gsub("AS:i:","",b);if(b/a>0.8){print $1}}' | sort | uniq > refdblist
+
+zcat SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.fasta.gz > SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.fasta
+
+getfastabyid_metaG.pl refdblist SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.fasta > ref.db.fasta
+getfastabyid_metaG.pl refdblist SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.fasta > ref.db.aligned.fasta
+
+awk '/>/{OFS=" "; gsub(">","",$0); a=$1; gsub($1" ","",$0);gsub(" ","_",$0); print a"\t"$0";"}' ref.db.fasta > ref.db.tax
+
+awk '/>/{OFS=" "; gsub(">","",$0); a=$1; gsub($1" ","",$0);gsub(" ","_",$0); print a"\t"$0";"}' ref.db.aligned.fasta > ref.db.aligned.tax
+
+wget http://hgdownload.cse.ucsc.edu/goldenpath/hg19/chromosomes/chrM.fa.gz
+zcat chrM.fa.gz > chrM.fasta
+sed -ie 's/>chrM/>chrM HUMAN;chrM;/g' chrM.fasta
+cat ref.db.fasta chrM.fasta > ref.db.chrM.fasta
+awk '/>/{OFS=" "; gsub(">","",$0); a=$1; gsub($1" ","",$0);gsub(" ","_",$0); print a"\t"$0";"}' ref.db.chrM.fasta > ref.db.chrM.tax
+mafft --thread 16 --auto ref.db.chrM.fasta > ref.db.chrM.align.fasta
+
+
+
+# reference
+## silva.bacteria.fasta
+wget https://www.mothur.org/w/images/9/98/Silva.bacteria.zip
+unzip Silva.bacteria.zip
+
+cat silva.bacteria/silva.gold.ng.fasta chrM.fasta > silva.gold.chrM.fasta
+
+wget http://www.drive5.com/muscle/downloads3.8.31/muscle3.8.31_i86linux64.tar.gz
+head -n 1000 ref.db.chrM.fasta > test.fasta
+#muscle3.8.31_i86linux64 -in test.fasta -out test.align.test
+wget http://mafft.cbrc.jp/alignment/software/mafft-7.305-gcc_fc6.x86_64.rpm
+#mafft --thread 16 --auto ref.db.chrM.fasta > ref.db.chrM.mafft.aligned.fasta
+mafft --thread 16 --auto silva.gold.chrM.fasta > silva.gold.chrM.fasta.mafft.aligned.fasta
+
+wget https://www.mothur.org/w/images/9/98/Silva.bacteria.zip
+
+
+#summary.seqs(fasta=silva.gold.chrM.fasta.mafft.aligned.fasta,processors=12)
+summary.seqs(fasta=silva.bacteria.fasta,processors=12)
+pcr.seqs(fasta=silva.bacteria.fasta, start=1044, end=43116, keepdots=F, processors=12)
+system(mv silva.bacteria.pcr.fasta silva.v4.fasta)
+align.seqs(fasta=stability.trim.contigs.good.unique.fasta, reference=silva.v4.fasta, processors=16)
+
+summary.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table)
+
+screen.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table, summary=stability.trim.contigs.good.unique.summary, start=12086, end=24256, maxhomop=8, maxambig=0, minlength=200, maxlength=480,processors=16)
+
+summary.seqs(fasta=stability.trim.contigs.good.unique.good.align, count=stability.trim.contigs.good.good.count_table)
+
+filter.seqs(fasta=stability.trim.contigs.good.unique.good.align, vertical=T, trump=.)
+unique.seqs(fasta=stability.trim.contigs.good.unique.good.filter.fasta, count=stability.trim.contigs.good.good.count_table)
+pre.cluster(fasta=stability.trim.contigs.good.unique.good.filter.unique.fasta, count=stability.trim.contigs.good.unique.good.filter.count_table, diffs=0)
+chimera.uchime(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.count_table, dereplicate=t)
+remove.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, accnos=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.accnos)
+summary.seqs(fasta=current, count=current)
+
+classify.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.pick.count_table, reference=ref.db.aligned.fasta, taxonomy=ref.db.aligned.tax, cutoff=60)
+
+```
+
+# sample by sample; work in R
+
+```{r,eval=FALSE}
+
+samtools faidx SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.fasta
+samtools faidx SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.fasta
+
+awk '/>/{OFS=" "; gsub(">","",$0); a=$1; gsub($1" ","",$0);gsub(" ","_",$0); gsub("_=_","_",$0); gsub("-","_",$0); print a"\t"$0";"}' SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.fasta > SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.tax ;
+cp SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.tax  SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.tax ; 
+
+tr '\n' ' ' <  refdblist.ESCC_M_000001 | xargs samtools faidx SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.fasta 
+
+############################
+# rm stability.files.ESCC_*
+############################
+
+R
+
+fq1 <-list.files(pattern="ESCC.*_R1.fastq")
+fq2 <-list.files(pattern="ESCC.*_R2.fastq")
+sid <- gsub("_R1.fastq","",fq1)
+
+for( i in 1:length(sid)){
+  system(paste(" awk 'NR==",i,"' stability.files > ","stability.files.",sid[i],sep=""))
+  system(paste(" ./mothur/mothur \"#make.contigs(file=","stability.files.",sid[i],
+               ", processors=12,deltaq=15,trimoverlap=F,insert=30) ; ",
+               " rename.file(fasta=current, name=current, group=current, taxonomy=current, prefix=",
+               "stability.files.",sid[i],") ;",
+               " screen.seqs(fasta=current, group=current, maxambig=0, minlength=400,maxlength=470) ; ",
+               " unique.seqs() ; ",
+               " count.seqs(name=current, group=current) ; ",
+               " \"",sep=""))
+  system(paste(" bwa mem -t 16 SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.fasta ","stability.files.",
+               sid[i],".good.unique.fasta > ","stability.files.",sid[i],".good.unique.fasta.sam ; ",
+               " bwa mem -t 16 chrM.fa ",fq1[i]," ",fq2[i]," > ","stability.files.",sid[i],".chrM.sam ; ",
+               " samtools view -F 256 -S  stability.files.",sid[i],".good.unique.fasta.sam | ",
+               "  cut -f 3,10,14 | awk '{a=length($2); b=$3; gsub(\"AS:i:\",\"\",b);if(b/a>0.5){print $1}}'",
+               " | sort | uniq > refdblist.",sid[i]," ; ",
+               " samtools view -F 256 -S  stability.files.",sid[i],".chrM.sam | ",
+               "  cut -f 1,3,10,14 | awk '{a=length($3); b=$4; gsub(\"AS:i:\",\"\",b);if(b/a>0.9){print $1}}'",
+               " | sort | uniq | wc -l > refdblist.",sid[i],".chrM.count ; ",
+               " tr '\n' ' ' < refdblist.",sid[i]," | xargs samtools faidx SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.fasta > ref.db.",sid[i],".fasta ; ",
+               " tr '\n' ' ' < refdblist.",sid[i]," | xargs samtools faidx SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.fasta > ref.db.",sid[i],".fasta ; ",
+               " extractbyquery.pl refdblist.",sid[i]," 1 SILVA_128_SSURef_Nr99_tax_silva.w0.DNA.tax 1 > ref.db.",sid[i],".tax ; ",
+               " extractbyquery.pl refdblist.",sid[i]," 1 SILVA_128_SSURef_Nr99_tax_silva_full_align_trunc.tax 1 > ref.db.",sid[i],".tax ; ",
+               sep=""))
+  system(paste(" ./mothur/mothur \"#pcr.seqs(fasta=ref.db.aligned.",sid[i],".fasta, start=1044, end=43116, keepdots=F, processors=12) ; ",
+               " make.contigs(file=","stability.files.",sid[i],
+               ", processors=12,deltaq=15,trimoverlap=F,insert=30) ; ",
+               " rename.file(fasta=current, name=current, group=current, taxonomy=current, prefix=",
+               "stability.files.",sid[i],") ;",
+               " screen.seqs(fasta=current, group=current, maxambig=0, minlength=400,maxlength=470) ; ",
+               " unique.seqs() ; ",
+               " count.seqs(name=current, group=current) ; ",
+               " align.seqs(fasta=stability.files.",
+               sid[i],".good.unique.fasta, reference=ref.db.aligned.",sid[i],".pcr.fasta, processors=16,flip=T) ; ",
+               " screen.seqs(fasta=current, count=current,start=12086, end=24256, maxhomop=8, maxambig=0, minlength=200, maxlength=480, processors=16) ; ",
+               " filter.seqs(fasta=current, vertical=T, trump=.) ; ",
+               " unique.seqs(fasta=current, count=current) ; ",
+               " pre.cluster(fasta=current, count=current, diffs=1) ; ",
+               " chimera.uchime(fasta=current, count=current, dereplicate=t) ; ",
+               " remove.seqs(fasta=current, accnos=current) ; ",
+               " classify.seqs(fasta=current, count=current, reference=ref.db.",sid[i],".fasta, taxonomy=ref.db.",sid[i],".tax, cutoff=70) ;  \" ",
+               sep=""))
+
+}
+
+```
+
+pcr.seqs(fasta=silva.bacteria.fasta, start=1044, end=43116, keepdots=F, processors=12)
+system(mv silva.bacteria.pcr.fasta silva.v4.fasta)
+align.seqs(fasta=stability.trim.contigs.good.unique.fasta, reference=silva.v4.fasta, processors=16)
+
+summary.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table)
+
+screen.seqs(fasta=stability.trim.contigs.good.unique.align, count=stability.trim.contigs.good.count_table, summary=stability.trim.contigs.good.unique.summary, start=12086, end=24256, maxhomop=8, maxambig=0, minlength=200, maxlength=480,processors=16)
+
+summary.seqs(fasta=stability.trim.contigs.good.unique.good.align, count=stability.trim.contigs.good.good.count_table)
+
+filter.seqs(fasta=stability.trim.contigs.good.unique.good.align, vertical=T, trump=.)
+unique.seqs(fasta=stability.trim.contigs.good.unique.good.filter.fasta, count=stability.trim.contigs.good.good.count_table)
+pre.cluster(fasta=stability.trim.contigs.good.unique.good.filter.unique.fasta, count=stability.trim.contigs.good.unique.good.filter.count_table, diffs=0)
+chimera.uchime(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.count_table, dereplicate=t)
+remove.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.fasta, accnos=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.accnos)
+summary.seqs(fasta=current, count=current)
+
+classify.seqs(fasta=stability.trim.contigs.good.unique.good.filter.unique.precluster.pick.fasta, count=stability.trim.contigs.good.unique.good.filter.unique.precluster.denovo.uchime.pick.count_table, reference=ref.db.aligned.fasta, taxonomy=ref.db.aligned.tax, cutoff=60)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
