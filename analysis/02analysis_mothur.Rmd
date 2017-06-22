@@ -319,6 +319,33 @@ for( i in 1:length(sid)){
 
 }
 
+
+fq1 <-list.files(pattern="ESCC.*_R1.fastq")
+fq2 <-list.files(pattern="ESCC.*_R2.fastq")
+sid <- gsub("_R1.fastq","",fq1)
+
+for( i in 1:length(sid)){
+     system(paste(" ./mothur/mothur \"#pcr.seqs(fasta=ref.db.aligned.",sid[i],".fasta, start=1044, end=43116, keepdots=F, processors=12) ; ",
+               " make.contigs(file=","stability.files.",sid[i],
+               ", processors=12,deltaq=15,trimoverlap=F,insert=30) ; ",
+               " rename.file(fasta=current, name=current, group=current, taxonomy=current, prefix=",
+               "stability.files.",sid[i],") ;",
+               " screen.seqs(fasta=current, group=current, maxambig=0, minlength=400,maxlength=470) ; ",
+               " unique.seqs() ; ",
+               " count.seqs(name=current, group=current) ; ",
+               " align.seqs(fasta=stability.files.",
+               sid[i],".good.unique.fasta, reference=ref.db.aligned.",sid[i],".pcr.fasta, processors=16,flip=T) ; ",
+               " screen.seqs(fasta=current, count=current,start=12086, end=24256, maxhomop=8, maxambig=0, minlength=200, maxlength=480, processors=16) ; ",
+               " filter.seqs(fasta=current, vertical=T, trump=.) ; ",
+               " unique.seqs(fasta=current, count=current) ; ",
+               " pre.cluster(fasta=current, count=current, diffs=1) ; ",
+               " chimera.uchime(fasta=current, count=current, dereplicate=t) ; ",
+               " remove.seqs(fasta=current, accnos=current) ; ",
+               " classify.seqs(fasta=current, count=current, reference=ref.db.",sid[i],".fasta, taxonomy=ref.db.",sid[i],".tax, cutoff=99) ;  \" ",
+               sep=""))
+
+}
+
 ```
 
 pcr.seqs(fasta=silva.bacteria.fasta, start=1044, end=43116, keepdots=F, processors=12)
