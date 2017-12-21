@@ -1,0 +1,49 @@
+
+trim small RNA adapter and universal adapter: adapter.fa
+>smallad/1
+GTTCAGAGTTCTACAGTCCGACGATC
+>smallad/2
+TCGTATGCCGTCTTCTGCTTGT
+>PrefixPE/1
+TACACTCTTTCCCTACACGACGCTCTTCCGATCT
+>PrefixPE/2
+GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT
+>universal
+AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT
+
+mkdir trimmed
+for i in ../00raw/*_R1.fastq ; do 
+j=${i##*/} ;
+j=${j%%_*} ; 
+java -jar /home/softwares/jar/trimmomatic-0.36.jar PE -phred33 $i ${i%%_*}_R2.fastq ./trimmed/${j}_trimed_R1.fastq /dev/null ./trimmed/${j}_trimed_R2.fastq /dev/null ILLUMINACLIP:adapter.fa:2:20:10 LEADING:15 TRAILING:15 SLIDINGWINDOW:4:15 MINLEN:175 &> ./trimmed/${j}_trimed.log ; 
+echo ${i%%_*} ;
+done
+
+AdapterRemoval --file1 ./trimmed/GYZ1_trimed_R1.fastq --file2 ./trimmed/GYZ1_trimed_R2.fastq --basename ./trimmed/GYZ1_trimed_merge --collapse
+
+source activate qiime2-2017.11
+build Fastq manifest
+sample-id,absolute-filepath,direction
+# Lines starting with '#' are ignored and can be used to create
+# "comments" or even "comment out" entries
+sample-1,$PWD/some/filepath/sample1_R1.fastq.gz,forward
+sample-2,$PWD/some/filepath/sample2_R1.fastq.gz,forward
+sample-1,$PWD/some/filepath/sample1_R2.fastq.gz,reverse
+sample-2,$PWD/some/filepath/sample2_R2.fastq.gz,reverse
+
+
+echo "sample-id,absolute-filepath,direction" > fastq.manifest
+for i in ${PWD}/trimmed/G*_R1.fastq ; do 
+j=${i##*/} ;
+j=${j%%_*} ;
+echo $j","$i",forward"; done >> fastq.manifest
+for i in ${PWD}/trimmed/G*_R2.fastq ; do 
+j=${i##*/} ;
+j=${j%%_*} ;
+echo $j","$i",reverse"; done >> fastq.manifest
+
+qiime tools import \
+  --type 'SampleData[PairedEndSequencesWithQuality]' \
+  --input-path fastq.manifest \
+  --output-path paired-end-demux.qza \
+  --source-format PairedEndFastqManifestPhred33
